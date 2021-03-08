@@ -40,6 +40,7 @@ type SSHTunnel struct {
 	LoadBalancerEmulator tunnel.LoadBalancerEmulator
 	conns                map[string]*sshConn
 	connsToStop          map[string]*sshConn
+	connLock             sync.Mutex
 }
 
 // NewSSHTunnel ...
@@ -52,6 +53,7 @@ func NewSSHTunnel(ctx context.Context, sshPort, sshKey string, v1Core typed_core
 		LoadBalancerEmulator: tunnel.NewLoadBalancerEmulator(v1Core),
 		conns:                make(map[string]*sshConn),
 		connsToStop:          make(map[string]*sshConn),
+		connLock:             sync.Mutex{},
 	}
 }
 
@@ -114,6 +116,10 @@ func (t *SSHTunnel) startConnection(svc v1.Service) {
 		if err != nil {
 			klog.Errorf("error starting ssh tunnel: %v", err)
 		}
+		t.connLock.Lock()
+		delete(t.conns, uniqName)
+		delete(t.conns, uniqName)
+		t.connLock.Unlock()
 	}()
 
 	err := t.LoadBalancerEmulator.PatchServiceIP(t.v1Core.RESTClient(), svc, "127.0.0.1")
